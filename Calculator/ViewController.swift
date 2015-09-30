@@ -10,95 +10,109 @@ import UIKit
 
 class ViewController: UIViewController {
 
-    @IBOutlet weak var historyDisplay: UILabel!
+    @IBOutlet weak var history: UILabel!
     @IBOutlet weak var display: UILabel!
     var typingNumber = false
     var validDecimal = true
+    var brain = CalculatorBrain()
+
+    var displayValue: Double? {
+        get{
+            if let text = display.text{
+               return NSNumberFormatter().numberFromString(text)!.doubleValue
+            }else{
+                return nil
+            }
+            
+        }
+        set{
+            if let value = newValue{
+                display.text = "\(value)"
+            }
+            else{
+                display.text = "ERR"
+            }
+            typingNumber = false
+        }
+    }
+    var historyDisplay: String?{
+        get{
+            if let text = history.text{
+                return text
+            }
+            return " "
+        }
+        set{
+            if let value = newValue{
+               history.text = value == " " ? value : value + "="
+            }
+        }
+    }
     
     @IBAction func appendDigit(sender: UIButton) {
         let digit = sender.currentTitle!
-        println("digit = \(digit)")
+        //print("digit = \(digit)")
         if typingNumber{
-            if digit == "."{
-                if validDecimal{
-                    display.text = display.text! + digit
-                    validDecimal = false
-                }
-            }else{
-                display.text = display.text! + digit
-            }
-            
+            display.text = display.text! + digit
         }else{
             display.text = digit
-            if digit == "."{
-                validDecimal = false
-            }
             typingNumber = true
         }
         
     }
-    var operandStack = Array<Double>()
-    
+    @IBAction func addDecimal() {
+        if validDecimal{
+            display.text = display.text! + "."
+        }
+        typingNumber = true
+        validDecimal = false
+    }
     @IBAction func enter() {
         typingNumber = false
         validDecimal = true
-        historyDisplay.text = historyDisplay.text! + " \(displayValue) "
-        operandStack.append(displayValue)
-        println("Operand Stack = \(operandStack)")
-        
+        if let result =  brain.pushOperand(displayValue!){
+            displayValue = result
+        }else{
+            displayValue = nil
+        }
     }
     
-
-    var displayValue: Double {
-        get{
-           return NSNumberFormatter().numberFromString(display.text!)!.doubleValue
-        }
-        set{
-            display.text = "\(newValue)"
-            typingNumber = false
-        }
-    }
     @IBAction func operate(sender: UIButton) {
-        let operation = sender.currentTitle!
         if typingNumber{
             enter()
         }
-        historyDisplay.text = historyDisplay.text! + " \(operation) "
-        switch operation{
-        case "×":performOperation {$0 * $1}
-        case "÷":performOperation {$1 / $0}
-        case "+":performOperation {$0 + $1}
-        case "-":performOperation {$1 - $0}
-        case "√":perform { sqrt($0) }
-        case "sin": perform { sin($0) }
-        case "cos":perform { cos($0) }
-        case "π": piAction()
-        default: break
-            
+        if let operation = sender.currentTitle{
+            if let result = brain.performOperation(operation){
+                displayValue = result
+            }
+            else{
+                displayValue = nil
+            }
+            if let historyVal = brain.brainContents{
+                historyDisplay = historyVal
+            }
         }
     }
-    func piAction() {
-        display.text = "\(M_PI)"
-    }
-    
-    func perform(operation: Double->Double ){
-        if operandStack.count >= 1{
-            displayValue = operation(operandStack.removeLast())
-            enter()
+    @IBAction func pushVariable() {
+        if let result = brain.pushOperand("M"){
+            displayValue = result
         }
     }
-    
-    func performOperation(operation: (Double, Double)->Double ){
-        if operandStack.count >= 2{
-            displayValue = operation(operandStack.removeLast(), operandStack.removeLast())
-            enter()
+    @IBAction func setVariable() {
+        if let value = displayValue{
+            if let result = brain.setVar(value){
+                displayValue = result
+            }
+            if let historyVal = brain.brainContents{
+                historyDisplay = historyVal
+            }
+            typingNumber = false
         }
     }
-    
     @IBAction func clear() {
-        display.text = ""
-        historyDisplay.text = ""
-        operandStack = Array<Double>()
+        displayValue = 0
+        historyDisplay = " "
+        brain.clearVariables()
     }
 
     
